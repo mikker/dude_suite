@@ -1,0 +1,13 @@
+# Binaries
+/suite
+*.exe
+
+# Test artifacts
+*.test
+*.out
+
+# Local config
+/.suite.yml
+
+# OS files
+.DS_Store
