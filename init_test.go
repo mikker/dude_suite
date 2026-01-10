@@ -60,6 +60,7 @@ func TestRunInitExistingFile(t *testing.T) {
 
 func TestOfferInitNonTTY(t *testing.T) {
 	dir := t.TempDir()
+	t.Cleanup(silenceOutput(t))
 	old, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("getwd: %v", err)
@@ -93,6 +94,7 @@ func TestOfferInitNonTTY(t *testing.T) {
 
 func TestOfferInitYes(t *testing.T) {
 	dir := t.TempDir()
+	t.Cleanup(silenceOutput(t))
 	old, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("getwd: %v", err)
@@ -131,6 +133,7 @@ func TestOfferInitYes(t *testing.T) {
 
 func TestOfferInitNo(t *testing.T) {
 	dir := t.TempDir()
+	t.Cleanup(silenceOutput(t))
 	old, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("getwd: %v", err)
@@ -164,5 +167,25 @@ func TestOfferInitNo(t *testing.T) {
 
 	if _, err := os.Stat(path); err == nil {
 		t.Fatalf("did not expect config to be created")
+	}
+}
+
+func silenceOutput(t *testing.T) func() {
+	t.Helper()
+
+	devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+	if err != nil {
+		t.Fatalf("open %s: %v", os.DevNull, err)
+	}
+
+	oldOut := os.Stdout
+	oldErr := os.Stderr
+	os.Stdout = devNull
+	os.Stderr = devNull
+
+	return func() {
+		os.Stdout = oldOut
+		os.Stderr = oldErr
+		_ = devNull.Close()
 	}
 }
