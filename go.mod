@@ -1,4 +1,4 @@
-module suite
+module dude_suite
 
 go 1.25.5
 

@@ -1,4 +1,9 @@
-# suite
+```
+dude
+suite
+```
+
+[_What does mine say?_](https://www.youtube.com/watch?v=gSh7EcVdnvk)
 
 <img src="https://s3.brnbw.com/CleanShot-2026-01-10-at-22.11.09-2x-qcDLkF7Bil.png" width="1077">
 
@@ -8,13 +13,7 @@ Tiny TUI task runner with hotkeys, split output, and YAML config.
 
 ## Features
 
-- Hotkeys + list navigation with expandable task trees.
-- Sequential/parallel tasks, task references, and named steps.
-- Combos to run multiple tasks in parallel or sequentially.
-- Output pane with status bar and prefixed logs for multi-step runs.
-- Mouse support (scrolling over output focuses it).
-- `suite init` bootstrap + prompt to create a config when missing.
-- Theme auto-detection (tmux friendly) with `--theme` override.
+Map keys to tasks (or flows).
 
 ## Run
 
@@ -35,12 +34,6 @@ By default it reads `.suite.yml` from the current directory. Use `-c` or `--conf
 ./suite -c path/to/.suite.yml
 ```
 
-Theme override (helpful under tmux):
-
-```bash
-./suite --theme light
-```
-
 ## Init
 
 Create a starter config in the current directory:
@@ -48,8 +41,6 @@ Create a starter config in the current directory:
 ```bash
 ./suite init
 ```
-
-If you run `suite` without a config present, it will prompt to create one.
 
 ## Key bindings
 
@@ -64,19 +55,9 @@ If you run `suite` without a config present, it will prompt to create one.
 - `?` help
 - task/combos keys run immediately
 
-When output is focused, `pgup/pgdn`, `ctrl+u/d`, arrow keys, and mouse wheel scroll the output.
-
 ## Config
 
 ```yaml
-title: suite
-sidebar_width: 32
-shell: /bin/zsh
-theme: auto # auto | light | dark
-init:
-  - source ~/.zshrc
-  - mise activate
-
 tasks:
   - key: f
     name: format
@@ -88,7 +69,7 @@ tasks:
 
   - key: t
     name: test
-    cmd: bin/test
+    cmd: bin/rails test
 
   - key: a
     name: full
@@ -113,7 +94,7 @@ tasks:
 Notes:
 
 - `name` is the stable reference for tasks and combos. If omitted it’s derived from the command (or key if present).
-- `key` is optional and case-sensitive; keyless tasks can still be selected and run with `enter`.
+- `key` is optional and case-sensitive; keyless tasks can still be selected and run with `enter` or by reference.
 - `hidden: true` hides a task from the root list while keeping it referenceable by other tasks.
 - `cmd` can be a single string or a list (sequential).
 - `seq`/`parallel` are lists of steps. Steps can be strings or `{cmd: ...}` / `{task: ...}`.
@@ -122,19 +103,6 @@ Notes:
 - `init` (optional) runs before every command (useful for `mise activate`).
 - Only one instance of a task runs at a time; re-triggering a running task is ignored.
 - Only the most recent run output is kept per task/step.
-
-Combos (optional):
-
-```yaml
-combos:
-  - name: all
-    key: a
-    mode: parallel # or sequential
-    run: [lint, test]
-    # stop_on_fail: false
-```
-
-`run` references task names (set `name` explicitly if you want stable references).
 
 ## License
 
