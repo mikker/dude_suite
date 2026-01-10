@@ -17,6 +17,10 @@ Map keys to tasks (or flows).
 
 ## Run
 
+Download the latest binary:
+
+https://github.com/mikker/dude_suite/releases/latest/download/suite
+
 ```bash
 go run .
 ```
