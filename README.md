@@ -22,14 +22,7 @@ Download the latest binary:
 https://github.com/mikker/dude_suite/releases/latest/download/suite
 
 ```bash
-go run .
-```
-
-Or build a binary:
-
-```bash
-go build -o suite
-./suite
+$ suite
 ```
 
 By default it reads `.suite.yml` from the current directory. Use `-c` or `--config` to override:
