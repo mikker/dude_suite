@@ -4,6 +4,8 @@
 
 Tiny TUI task runner with hotkeys, split output, and YAML config.
 
+[![Certified Shovelware](https://justin.searls.co/img/shovelware.svg)](https://justin.searls.co/shovelware/)
+
 ## Features
 
 - Hotkeys + list navigation with expandable task trees.
