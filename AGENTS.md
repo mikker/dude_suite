@@ -3,7 +3,7 @@
 ## Project Structure & Module Organization
 - Go sources live in the repo root (for now): `main.go`, `ui.go`, `runner.go`, `config.go`, `step_list.go`, etc.
 - Tests use Go’s standard layout alongside sources: `*_test.go` files in the same directory.
-- Example config files live at the root: `.suite.yml` and generated templates in `init.go`.
+- Config templates live in `init.go`; `.suite.yml` is user-local and gitignored.
 - Documentation lives in `README.md`.
 
 ## Build, Test, and Development Commands
@@ -33,4 +33,5 @@
 ## Configuration Tips
 - Default config is `.suite.yml` in the working directory.
 - `name` is the stable reference for tasks and combos; keys are optional hotkeys.
+- `hidden: true` hides a task from the root list but keeps it referenceable by other tasks.
 - Steps can be strings or `{cmd: ...}` / `{task: ...}` for disambiguation.

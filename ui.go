@@ -584,6 +584,7 @@ func (m *model) appendTaskChildren(entries *[]entry, parent entry, stack map[str
 
 	for idx, step := range steps {
 		kind, value := resolveStepKind(step, m.resolveTask)
+		label := stepDisplayName(step)
 		if kind == StepCommand {
 			stepID := stepID(parent.Target, mode, idx)
 			*entries = append(*entries, entry{
@@ -593,7 +594,7 @@ func (m *model) appendTaskChildren(entries *[]entry, parent entry, stack map[str
 				ParentID:   parent.ID,
 				ParentTask: parent.Target,
 				RootTask:   parent.RootTask,
-				Label:      value,
+				Label:      label,
 				Mode:       mode,
 				Index:      idx,
 				Depth:      parent.Depth + 1,
@@ -609,7 +610,7 @@ func (m *model) appendTaskChildren(entries *[]entry, parent entry, stack map[str
 			ParentID:   parent.ID,
 			ParentTask: parent.Target,
 			RootTask:   parent.RootTask,
-			Label:      value,
+			Label:      label,
 			Mode:       mode,
 			Index:      idx,
 			IsChild:    true,
@@ -943,6 +944,9 @@ func (m *model) renderEntryLine(entry entry) string {
 		base := entry.Label
 		if task != nil {
 			base = taskDisplayName(task.Def)
+			if entry.IsChild && entry.Label != "" && entry.Label != task.Def.Name {
+				base = entry.Label
+			}
 		}
 		marker := m.entryMarker(entry)
 		line := fmt.Sprintf("%s%s %s", indent, marker, base)

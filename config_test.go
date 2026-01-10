@@ -48,14 +48,14 @@ combos:
 	if cfg.Shell == "" {
 		t.Fatalf("expected default shell to be set")
 	}
-	if cfg.Tasks[0].Key != "b" {
-		t.Fatalf("expected task key lowercase, got %q", cfg.Tasks[0].Key)
+	if cfg.Tasks[0].Key != "B" {
+		t.Fatalf("expected task key preserved, got %q", cfg.Tasks[0].Key)
 	}
 	if cfg.Tasks[0].Name != "build" {
 		t.Fatalf("expected task name, got %q", cfg.Tasks[0].Name)
 	}
-	if cfg.Combos[0].Key != "a" {
-		t.Fatalf("expected combo key lowercase, got %q", cfg.Combos[0].Key)
+	if cfg.Combos[0].Key != "A" {
+		t.Fatalf("expected combo key preserved, got %q", cfg.Combos[0].Key)
 	}
 	if cfg.Combos[0].Mode != "sequential" {
 		t.Fatalf("expected combo mode default sequential, got %q", cfg.Combos[0].Mode)

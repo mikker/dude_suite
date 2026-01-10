@@ -85,7 +85,7 @@ func (c *Config) normalize(path string) {
 
 	for i := range c.Tasks {
 		t := &c.Tasks[i]
-		t.Key = strings.ToLower(strings.TrimSpace(t.Key))
+		t.Key = strings.TrimSpace(t.Key)
 		t.Name = strings.TrimSpace(t.Name)
 		t.Cmd = normalizeStepList(t.Cmd)
 		t.Parallel = normalizeStepList(t.Parallel)
@@ -97,7 +97,7 @@ func (c *Config) normalize(path string) {
 
 	for i := range c.Combos {
 		cb := &c.Combos[i]
-		cb.Key = strings.ToLower(strings.TrimSpace(cb.Key))
+		cb.Key = strings.TrimSpace(cb.Key)
 		cb.Name = strings.TrimSpace(cb.Name)
 		cb.Mode = strings.ToLower(strings.TrimSpace(cb.Mode))
 		if cb.Mode == "" {

@@ -135,3 +135,29 @@ func TestHiddenTaskShowsAsChild(t *testing.T) {
 		t.Fatalf("expected hidden task to appear as child entry")
 	}
 }
+
+func TestNamedStepUsesLabel(t *testing.T) {
+	cfg := Config{
+		Tasks: []TaskDef{
+			{Name: "parent", Seq: StepList{{Value: "echo hi", Name: "check_dirty", Kind: StepCommand}}},
+		},
+		SidebarWidth: 32,
+	}
+
+	m := newModel(cfg)
+	m.expanded["task:parent"] = true
+	m.rebuildEntries()
+
+	found := false
+	for _, entry := range m.entries {
+		if entry.Kind == entryStep && entry.ParentTask == "parent" {
+			if entry.Label != "check_dirty" {
+				t.Fatalf("expected named step label, got %q", entry.Label)
+			}
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected step entry for parent task")
+	}
+}
