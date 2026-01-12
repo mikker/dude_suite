@@ -128,6 +128,7 @@ type model struct {
 	expanded       map[string]bool
 	streamBySource map[string]chan tea.Msg
 	showCheats     bool
+	restartPending map[string]bool
 }
 
 func newModel(cfg Config) model {
@@ -175,6 +176,7 @@ func newModel(cfg Config) model {
 		autoScroll:     true,
 		expanded:       make(map[string]bool),
 		streamBySource: make(map[string]chan tea.Msg),
+		restartPending: make(map[string]bool),
 	}
 	m.rebuildEntries()
 	return m
@@ -210,6 +212,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case "ctrl+k", "ctrl+x":
 			return m, m.killSelectedTask()
+		case "ctrl+r":
+			return m, m.restartSelectedTask()
 		case "ctrl+h":
 			m.focus = focusList
 			return m, nil
@@ -311,15 +315,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case TaskOutputMsg:
 			m.handleOutput(inner)
 		case TaskFinishedMsg:
-			m.handleTaskFinished(inner)
-			m.advanceCombos(inner, &cmds)
-			m.rebuildEntries()
 			if inner.TaskID == msg.Source {
 				if task := m.taskByName[msg.Source]; task != nil {
 					task.msgCh = nil
 				}
 				delete(m.streamBySource, msg.Source)
 			}
+			m.handleTaskFinished(inner)
+			cmds = append(cmds, m.maybeRestartTask(inner.TaskID))
+			m.advanceCombos(inner, &cmds)
+			m.rebuildEntries()
 		case StepStartedMsg:
 			m.handleStepStarted(inner)
 		case StepFinishedMsg:
@@ -1103,6 +1108,46 @@ func (m *model) killSelectedTask() tea.Cmd {
 	return nil
 }
 
+func (m *model) restartSelectedTask() tea.Cmd {
+	entry := m.selectedEntry()
+	if entry == nil {
+		return nil
+	}
+	if entry.Kind == entryTask {
+		return m.restartTask(entry.Target)
+	}
+	if entry.ParentTask != "" {
+		return m.restartTask(entry.ParentTask)
+	}
+	if entry.RootTask != "" {
+		return m.restartTask(entry.RootTask)
+	}
+	return nil
+}
+
+func (m *model) restartTask(taskName string) tea.Cmd {
+	task := m.taskByName[taskName]
+	if task == nil {
+		return nil
+	}
+	if task.Running {
+		m.restartPending[taskName] = true
+		if task.cancel != nil {
+			task.cancel()
+		}
+		return nil
+	}
+	return m.startTask(taskName, false)
+}
+
+func (m *model) maybeRestartTask(taskName string) tea.Cmd {
+	if !m.restartPending[taskName] {
+		return nil
+	}
+	delete(m.restartPending, taskName)
+	return m.startTask(taskName, false)
+}
+
 func (m *model) triggerCombo(comboName string) tea.Cmd {
 	cb, ok := m.comboByName[comboName]
 	if !ok {
@@ -1300,7 +1345,7 @@ func (m model) renderOutput(height int) string {
 }
 
 func (m model) renderHelp() string {
-	help := "enter: run  ·  ↑/↓: select  ·  ←/→: collapse/expand  ·  ctrl+h/l: focus  ·  ctrl+k/x: kill  ·  ctrl+q: quit  ·  ?: help  ·  hotkeys: run"
+	help := "enter: run  ·  ↑/↓: select  ·  ←/→: collapse/expand  ·  ctrl+h/l: focus  ·  ctrl+k/x: kill  ·  ctrl+r: restart  ·  ctrl+q: quit  ·  ?: help  ·  hotkeys: run"
 	return helpStyle.Width(m.width).Render(help)
 }
 
@@ -1322,6 +1367,7 @@ func (m model) renderCheatsheet() string {
 		{"ctrl+h", "Focus list"},
 		{"ctrl+l", "Focus output"},
 		{"ctrl+k or ctrl+x", "Kill selected"},
+		{"ctrl+r", "Restart selected task"},
 		{"ctrl+q or ctrl+c", "Quit"},
 		{"task key", "Run task by hotkey"},
 		{"combo key", "Run combo by hotkey"},

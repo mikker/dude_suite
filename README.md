@@ -48,6 +48,7 @@ Create a starter config in the current directory:
 - `g` top, `G` bottom (output)
 - `q`/`esc` bottom + focus list
 - `ctrl+k`/`ctrl+x` kill selected task/step
+- `ctrl+r` restart selected task
 - `ctrl+q` quit
 - `?` help
 - task/combos keys run immediately
@@ -100,6 +101,11 @@ Notes:
 - `init` (optional) runs before every command (useful for `mise activate`).
 - Only one instance of a task runs at a time; re-triggering a running task is ignored.
 - Only the most recent run output is kept per task/step.
+- Every change should end with a note in `CHANGELOG.md`.
+
+## Changelog
+
+See `CHANGELOG.md`.
 
 ## License
 

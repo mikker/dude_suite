@@ -212,7 +212,8 @@ func runSingle(ctx context.Context, command string, shell string, init CommandLi
 	if shell == "" {
 		shell = "/bin/sh"
 	}
-	cmd := exec.CommandContext(ctx, shell, "-c", fullCommand)
+	cmd := exec.Command(shell, "-c", fullCommand)
+	prepareCommand(cmd)
 	cmd.Env = envWithShell(shell)
 	if isTerminal(os.Stdin) {
 		cmd.Stdin = os.Stdin
@@ -230,12 +231,22 @@ func runSingle(ctx context.Context, command string, shell string, init CommandLi
 		return -1, err
 	}
 
+	done := make(chan struct{})
+	go func() {
+		select {
+		case <-ctx.Done():
+			killProcess(cmd)
+		case <-done:
+		}
+	}()
+
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go streamLines(target, stdout, msgCh, &wg)
 	go streamLines(target, stderr, msgCh, &wg)
 
 	err = cmd.Wait()
+	close(done)
 	wg.Wait()
 
 	exitCode := 0
