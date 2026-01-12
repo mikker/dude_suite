@@ -6,9 +6,10 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-01-12
+
 ### Added
 - `ctrl+r` restart hotkey for tasks.
 
 ### Fixed
 - Killing a task now terminates descendant processes to stop run-loop style tasks.
-
