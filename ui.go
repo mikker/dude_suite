@@ -195,6 +195,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		key := msg.String()
+		if key == "ctrl+z" {
+			return m, tea.Suspend
+		}
 		if m.showCheats {
 			switch key {
 			case "esc", "q", "?":
@@ -253,6 +256,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		if len(key) == 1 {
 			if taskID, ok := m.taskKeys[key]; ok {
+				if task := m.taskByName[taskID]; task != nil && task.Running {
+					m.selectTaskEntry(taskID)
+					return m, nil
+				}
 				return m, m.startTask(taskID, false)
 			}
 			if comboID, ok := m.comboKeys[key]; ok {
@@ -1345,7 +1352,7 @@ func (m model) renderOutput(height int) string {
 }
 
 func (m model) renderHelp() string {
-	help := "enter: run  ·  ↑/↓: select  ·  ←/→: collapse/expand  ·  ctrl+h/l: focus  ·  ctrl+k/x: kill  ·  ctrl+r: restart  ·  ctrl+q: quit  ·  ?: help  ·  hotkeys: run"
+	help := "enter: run  ·  ↑/↓: select  ·  ←/→: collapse/expand  ·  ctrl+h/l: focus  ·  ctrl+k/x: kill  ·  ctrl+r: restart  ·  ctrl+z: bg  ·  ctrl+q: quit  ·  ?: help  ·  hotkeys: run"
 	return helpStyle.Width(m.width).Render(help)
 }
 
@@ -1368,6 +1375,7 @@ func (m model) renderCheatsheet() string {
 		{"ctrl+l", "Focus output"},
 		{"ctrl+k or ctrl+x", "Kill selected"},
 		{"ctrl+r", "Restart selected task"},
+		{"ctrl+z", "Suspend (background)"},
 		{"ctrl+q or ctrl+c", "Quit"},
 		{"task key", "Run task by hotkey"},
 		{"combo key", "Run combo by hotkey"},

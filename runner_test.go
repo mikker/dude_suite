@@ -142,7 +142,7 @@ func TestBuildShellCommand(t *testing.T) {
 
 func TestRunTaskWithTaskReference(t *testing.T) {
 	tasks := map[string]TaskDef{
-		"child": {Name: "child", Cmd: StepList{{Value: "printf 'child\n'", Kind: StepCommand}}},
+		"child":  {Name: "child", Cmd: StepList{{Value: "printf 'child\n'", Kind: StepCommand}}},
 		"parent": {Name: "parent", Cmd: StepList{{Value: "child", Kind: StepAuto}, {Value: "printf 'parent\n'", Kind: StepCommand}}},
 	}
 
