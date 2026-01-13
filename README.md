@@ -52,6 +52,8 @@ Create a starter config in the current directory:
 - `ctrl+q` quit
 - `?` help
 - task/combos keys run immediately
+- drag in output pane to copy selection
+  - tmux tip: if clipboard doesn't update, enable `set-clipboard on` or set `allow-passthrough on` and export `SUITE_OSC52_TMUX=1`
 
 ## Config
 

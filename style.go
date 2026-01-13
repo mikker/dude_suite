@@ -23,6 +23,7 @@ var (
 	selectedStyle         = lipgloss.NewStyle().Background(colorSelectedBg).Foreground(colorSelectedFg).Bold(true)
 	disabledStyle         = lipgloss.NewStyle().Foreground(colorMuted).Faint(true)
 	selectedDisabledStyle = lipgloss.NewStyle().Background(colorSelectedBg).Foreground(colorMuted).Faint(true)
+	outputSelectionStyle  = lipgloss.NewStyle().Background(colorSelectedBg).Foreground(colorSelectedFg)
 
 	sidebarStyle       = lipgloss.NewStyle().Border(lipgloss.NormalBorder()).Padding(0, 1)
 	outputStyle        = lipgloss.NewStyle().Border(lipgloss.NormalBorder())

@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
+	"github.com/aymanbagabas/go-osc52/v2"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -107,6 +109,23 @@ type autostartMsg struct {
 	TaskName string
 }
 
+type selectionPos struct {
+	Line int
+	Col  int
+}
+
+type outputSelection struct {
+	Start selectionPos
+	End   selectionPos
+}
+
+type viewportBounds struct {
+	x      int
+	y      int
+	width  int
+	height int
+}
+
 type model struct {
 	cfg            Config
 	tasks          []*Task
@@ -133,6 +152,8 @@ type model struct {
 	streamBySource map[string]chan tea.Msg
 	showCheats     bool
 	restartPending map[string]bool
+	mouseSelecting bool
+	selection      outputSelection
 }
 
 func newModel(cfg Config) model {
@@ -325,12 +346,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.MouseMsg:
 		if msg.X >= m.sidebarWidth {
 			m.focus = focusOutput
+			if handled, cmd := m.handleOutputMouseSelection(msg); handled {
+				return m, cmd
+			}
 			var cmd tea.Cmd
 			m.viewport, cmd = m.viewport.Update(msg)
 			m.autoScroll = m.viewport.AtBottom()
 			return m, cmd
 		}
 		m.focus = focusList
+		m.mouseSelecting = false
 		return m, nil
 
 	case taskStreamMsg:
@@ -368,6 +393,57 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+func (m *model) handleOutputMouseSelection(msg tea.MouseMsg) (bool, tea.Cmd) {
+	if msg.Button == tea.MouseButtonWheelUp || msg.Button == tea.MouseButtonWheelDown ||
+		msg.Button == tea.MouseButtonWheelLeft || msg.Button == tea.MouseButtonWheelRight {
+		return false, nil
+	}
+
+	switch msg.Action {
+	case tea.MouseActionPress:
+		if msg.Button != tea.MouseButtonLeft {
+			return false, nil
+		}
+		pos, ok := m.selectionPosForMouse(msg, false)
+		if !ok {
+			return false, nil
+		}
+		m.mouseSelecting = true
+		m.selection = outputSelection{
+			Start: pos,
+			End:   pos,
+		}
+		m.autoScroll = false
+		return true, nil
+	case tea.MouseActionMotion:
+		if !m.mouseSelecting {
+			return false, nil
+		}
+		pos, ok := m.selectionPosForMouse(msg, true)
+		if !ok {
+			return true, nil
+		}
+		m.selection.End = pos
+		return true, nil
+	case tea.MouseActionRelease:
+		if !m.mouseSelecting {
+			return false, nil
+		}
+		pos, ok := m.selectionPosForMouse(msg, true)
+		if ok {
+			m.selection.End = pos
+		}
+		text := m.selectionText()
+		m.mouseSelecting = false
+		if text == "" {
+			return true, nil
+		}
+		return true, copyToClipboardCmd(text)
+	}
+
+	return false, nil
 }
 
 func (m model) View() string {
@@ -918,6 +994,105 @@ func (m *model) outputForEntry(entry entry) []string {
 	return nil
 }
 
+func (m *model) selectionPosForMouse(msg tea.MouseMsg, clamp bool) (selectionPos, bool) {
+	bounds, ok := m.outputViewportBounds()
+	if !ok {
+		return selectionPos{}, false
+	}
+
+	x := msg.X
+	y := msg.Y
+	if clamp {
+		if x < bounds.x {
+			x = bounds.x
+		}
+		if x >= bounds.x+bounds.width {
+			x = bounds.x + bounds.width - 1
+		}
+		if y < bounds.y {
+			y = bounds.y
+		}
+		if y >= bounds.y+bounds.height {
+			y = bounds.y + bounds.height - 1
+		}
+	} else if x < bounds.x || x >= bounds.x+bounds.width || y < bounds.y || y >= bounds.y+bounds.height {
+		return selectionPos{}, false
+	}
+
+	return selectionPos{
+		Line: m.viewport.YOffset + (y - bounds.y),
+		Col:  x - bounds.x,
+	}, true
+}
+
+func (m *model) selectionText() string {
+	entry := m.selectedEntry()
+	if entry == nil {
+		return ""
+	}
+	lines := m.outputForEntry(*entry)
+	if len(lines) == 0 {
+		return ""
+	}
+
+	start, end := normalizeSelection(m.selection.Start, m.selection.End)
+	if start.Line == end.Line && start.Col == end.Col {
+		return ""
+	}
+
+	maxLine := len(lines) - 1
+	start.Line = clampInt(start.Line, 0, maxLine)
+	end.Line = clampInt(end.Line, 0, maxLine)
+	start.Col = clampInt(start.Col, 0, m.viewport.Width)
+	end.Col = clampInt(end.Col, 0, m.viewport.Width)
+
+	endCol := end.Col + 1
+
+	if start.Line == end.Line {
+		return strings.TrimRight(cutPlain(lines[start.Line], start.Col, endCol), "\n")
+	}
+
+	var out []string
+	out = append(out, cutPlain(lines[start.Line], start.Col, ansi.StringWidth(lines[start.Line])))
+	for i := start.Line + 1; i < end.Line; i++ {
+		out = append(out, ansi.Strip(lines[i]))
+	}
+	out = append(out, cutPlain(lines[end.Line], 0, endCol))
+	return strings.Join(out, "\n")
+}
+
+func (m model) outputViewportBounds() (viewportBounds, bool) {
+	if m.width == 0 || m.height == 0 {
+		return viewportBounds{}, false
+	}
+
+	outputWidth := m.width - m.sidebarWidth
+	if outputWidth < 20 {
+		outputWidth = 20
+	}
+
+	borderWidth, borderHeight := borderSize(outputStyle)
+	if outputWidth-borderWidth < 1 {
+		return viewportBounds{}, false
+	}
+
+	borderLeft := borderWidth / 2
+	borderTop := borderHeight / 2
+	viewportX := m.sidebarWidth + borderLeft + 1
+	viewportY := borderTop + 3
+
+	if m.viewport.Width <= 0 || m.viewport.Height <= 0 {
+		return viewportBounds{}, false
+	}
+
+	return viewportBounds{
+		x:      viewportX,
+		y:      viewportY,
+		width:  m.viewport.Width,
+		height: m.viewport.Height,
+	}, true
+}
+
 func (m *model) entryStatus(entry entry) (TaskStatus, string) {
 	if entry.Kind == entryStep {
 		if step := m.stepByID[entry.Target]; step != nil {
@@ -1368,7 +1543,7 @@ func (m model) renderOutput(height int) string {
 	statusText := statusBarStyle.Copy().Width(contentWidth).Render(fitWidth(statusLine, contentWidth))
 	statusSpacer := statusBarStyle.Copy().Width(contentWidth).Render(strings.Repeat(" ", contentWidth))
 	headerLine := outputContentStyle.Render(fitWidth(header, innerWidth))
-	viewportLine := outputContentStyle.Render(m.viewport.View())
+	viewportLine := outputContentStyle.Render(m.renderViewport())
 	outputLines := []string{
 		statusText,
 		statusSpacer,
@@ -1384,6 +1559,45 @@ func (m model) renderOutput(height int) string {
 		panel = panel.BorderForeground(colorMuted)
 	}
 	return panel.Render(content)
+}
+
+func (m model) renderViewport() string {
+	view := m.viewport.View()
+	if !m.mouseSelecting {
+		return view
+	}
+
+	start, end := normalizeSelection(m.selection.Start, m.selection.End)
+	if start.Line == end.Line && start.Col == end.Col {
+		return view
+	}
+
+	lines := strings.Split(view, "\n")
+	for i := range lines {
+		absLine := m.viewport.YOffset + i
+		if absLine < start.Line || absLine > end.Line {
+			continue
+		}
+
+		left := 0
+		right := m.viewport.Width
+		if absLine == start.Line {
+			left = start.Col
+		}
+		if absLine == end.Line {
+			right = end.Col + 1
+		}
+
+		left = clampInt(left, 0, m.viewport.Width)
+		right = clampInt(right, 0, m.viewport.Width)
+		if right <= left {
+			continue
+		}
+
+		lines[i] = applySelectionToLine(lines[i], left, right)
+	}
+
+	return strings.Join(lines, "\n")
 }
 
 func (m model) renderHelp() string {
@@ -1679,5 +1893,59 @@ func statusLabel(status TaskStatus, exitCode int) string {
 		return statusIconCanceled
 	default:
 		return ""
+	}
+}
+
+func normalizeSelection(a, b selectionPos) (selectionPos, selectionPos) {
+	if b.Line < a.Line || (b.Line == a.Line && b.Col < a.Col) {
+		return b, a
+	}
+	return a, b
+}
+
+func clampInt(value, min, max int) int {
+	if value < min {
+		return min
+	}
+	if value > max {
+		return max
+	}
+	return value
+}
+
+func cutPlain(line string, left, right int) string {
+	if right <= left {
+		return ""
+	}
+	return ansi.Strip(ansi.Cut(line, left, right))
+}
+
+func applySelectionToLine(line string, left, right int) string {
+	if right <= left {
+		return line
+	}
+	if left == 0 && right >= ansi.StringWidth(line) {
+		return outputSelectionStyle.Render(ansi.Strip(line))
+	}
+
+	prefix := ansi.Cut(line, 0, left)
+	middle := ansi.Cut(line, left, right)
+	suffix := ansi.Cut(line, right, ansi.StringWidth(line))
+
+	return prefix + outputSelectionStyle.Render(ansi.Strip(middle)) + suffix
+}
+
+func copyToClipboardCmd(text string) tea.Cmd {
+	return func() tea.Msg {
+		seq := osc52.New(text)
+		term := strings.ToLower(os.Getenv("TERM"))
+		if strings.Contains(term, "screen") || strings.Contains(term, "tmux") || os.Getenv("TMUX") != "" {
+			seq = seq.Screen()
+		}
+		if os.Getenv("SUITE_OSC52_TMUX") == "1" {
+			seq = seq.Tmux()
+		}
+		fmt.Fprint(os.Stderr, seq.String())
+		return nil
 	}
 }

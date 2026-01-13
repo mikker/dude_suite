@@ -6,6 +6,11 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-01-13
+
+### Added
+- Output pane mouse selection copies to clipboard on release.
+
 ## [0.2.0] - 2026-01-13
 
 ### Added
