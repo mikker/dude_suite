@@ -103,6 +103,10 @@ type taskStreamMsg struct {
 	Msg    tea.Msg
 }
 
+type autostartMsg struct {
+	TaskName string
+}
+
 type model struct {
 	cfg            Config
 	tasks          []*Task
@@ -183,7 +187,17 @@ func newModel(cfg Config) model {
 }
 
 func (m model) Init() tea.Cmd {
-	return nil
+	var cmds []tea.Cmd
+	for _, task := range m.tasks {
+		if !task.Def.Autostart {
+			continue
+		}
+		taskName := task.Def.Name
+		cmds = append(cmds, func() tea.Msg {
+			return autostartMsg{TaskName: taskName}
+		})
+	}
+	return tea.Batch(cmds...)
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -192,6 +206,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.setSize(msg.Width, msg.Height)
 		m.refreshViewport()
 		return m, nil
+	case autostartMsg:
+		return m, m.startTask(msg.TaskName, true)
 
 	case tea.KeyMsg:
 		key := msg.String()
@@ -204,14 +220,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.showCheats = false
 				return m, nil
 			case "ctrl+q", "ctrl+c":
+				m.killAllTasks()
 				return m, tea.Quit
 			}
 			return m, nil
 		}
 		switch key {
 		case "ctrl+q":
+			m.killAllTasks()
 			return m, tea.Quit
 		case "ctrl+c":
+			m.killAllTasks()
 			return m, tea.Quit
 		case "ctrl+k", "ctrl+x":
 			return m, m.killSelectedTask()
@@ -966,6 +985,9 @@ func (m *model) renderEntryLine(entry entry) string {
 		if status == "" {
 			return line
 		}
+		if task != nil && task.Running && task.Def.Persistent {
+			return fmt.Sprintf("%s  %s", line, statusStyle(StatusSuccess).Render(status))
+		}
 		return fmt.Sprintf("%s  %s", line, statusStyle(statusKind).Render(status))
 	}
 
@@ -1113,6 +1135,19 @@ func (m *model) killSelectedTask() tea.Cmd {
 		task.cancel()
 	}
 	return nil
+}
+
+func (m *model) killAllTasks() {
+	for _, cancel := range m.stepCancel {
+		if cancel != nil {
+			cancel()
+		}
+	}
+	for _, task := range m.taskByName {
+		if task != nil && task.cancel != nil {
+			task.cancel()
+		}
+	}
 }
 
 func (m *model) restartSelectedTask() tea.Cmd {
@@ -1615,14 +1650,18 @@ func renderComboLine(cb ComboDef, running bool) string {
 }
 
 func taskStatusText(task *Task) string {
+	if task.Running && task.Def.Persistent {
+		return statusIconPersistent
+	}
 	return statusLabel(task.Status, task.ExitCode)
 }
 
 const (
-	statusIconRunning  = ""
-	statusIconSuccess  = ""
-	statusIconFailed   = ""
-	statusIconCanceled = ""
+	statusIconRunning    = ""
+	statusIconPersistent = ""
+	statusIconSuccess    = ""
+	statusIconFailed     = ""
+	statusIconCanceled   = ""
 )
 
 func statusLabel(status TaskStatus, exitCode int) string {

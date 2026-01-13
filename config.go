@@ -20,12 +20,14 @@ type Config struct {
 }
 
 type TaskDef struct {
-	Name     string   `yaml:"name"`
-	Key      string   `yaml:"key"`
-	Hidden   bool     `yaml:"hidden"`
-	Cmd      StepList `yaml:"cmd"`
-	Parallel StepList `yaml:"parallel"`
-	Seq      StepList `yaml:"seq"`
+	Name       string   `yaml:"name"`
+	Key        string   `yaml:"key"`
+	Hidden     bool     `yaml:"hidden"`
+	Persistent bool     `yaml:"persistent"`
+	Autostart  bool     `yaml:"autostart"`
+	Cmd        StepList `yaml:"cmd"`
+	Parallel   StepList `yaml:"parallel"`
+	Seq        StepList `yaml:"seq"`
 }
 
 type ComboDef struct {

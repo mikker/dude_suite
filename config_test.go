@@ -157,6 +157,37 @@ func TestConfigValidateErrors(t *testing.T) {
 	}
 }
 
+func TestTaskFlagsPreserved(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "tasks.yml")
+
+	data := `tasks:
+  - name: watch
+    cmd: bin/watch
+    persistent: true
+    autostart: true
+`
+
+	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := LoadConfig(path)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+
+	if len(cfg.Tasks) != 1 {
+		t.Fatalf("expected 1 task, got %d", len(cfg.Tasks))
+	}
+	if !cfg.Tasks[0].Persistent {
+		t.Fatalf("expected persistent to be true")
+	}
+	if !cfg.Tasks[0].Autostart {
+		t.Fatalf("expected autostart to be true")
+	}
+}
+
 func TestStopOnFailDefault(t *testing.T) {
 	if !stopOnFail(ComboDef{}) {
 		t.Fatalf("expected stopOnFail default true")

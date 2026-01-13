@@ -6,6 +6,15 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-01-13
+
+### Added
+- `persistent: true` tasks use a play icon while running.
+- `autostart: true` tasks run when suite starts.
+
+### Changed
+- Exiting suite now cancels running tasks.
+
 ## [0.1.3] - 2026-01-13
 
 ### Added

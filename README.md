@@ -97,10 +97,13 @@ Notes:
 - `cmd` can be a single string or a list (sequential).
 - `seq`/`parallel` are lists of steps. Steps can be strings or `{cmd: ...}` / `{task: ...}`.
 - Use `{task: name}` to force a task reference when a string would otherwise be treated as a command.
+- `persistent: true` marks long-running tasks and shows a play icon while running.
+- `autostart: true` runs the task when suite starts.
 - `shell` (optional) defaults to `$SHELL`. Commands run in that shell with the current environment.
 - `init` (optional) runs before every command (useful for `mise activate`).
 - Only one instance of a task runs at a time; re-triggering a running task is ignored.
 - Only the most recent run output is kept per task/step.
+- Running tasks are terminated when suite exits.
 - Every change should end with a note in `CHANGELOG.md`.
 
 ## Changelog

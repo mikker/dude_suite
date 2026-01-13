@@ -49,9 +49,16 @@ func main() {
 	applyTheme(cfg.Theme)
 	m := newModel(cfg)
 	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
-	if _, err := p.Run(); err != nil {
+	finalModel, err := p.Run()
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "run error: %v\n", err)
 		os.Exit(1)
+	}
+	if final, ok := finalModel.(model); ok {
+		final.killAllTasks()
+	}
+	if final, ok := finalModel.(*model); ok {
+		final.killAllTasks()
 	}
 }
 
