@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
+	"runtime"
 	"strings"
 
 	"github.com/aymanbagabas/go-osc52/v2"
@@ -431,9 +433,10 @@ func (m *model) handleOutputMouseSelection(msg tea.MouseMsg) (bool, tea.Cmd) {
 		if !m.mouseSelecting {
 			return false, nil
 		}
-		pos, ok := m.selectionPosForMouse(msg, true)
-		if ok {
-			m.selection.End = pos
+		if m.selection.End == m.selection.Start {
+			if pos, ok := m.selectionPosForMouse(msg, true); ok {
+				m.selection.End = pos
+			}
 		}
 		text := m.selectionText()
 		m.mouseSelecting = false
@@ -1020,7 +1023,7 @@ func (m *model) selectionPosForMouse(msg tea.MouseMsg, clamp bool) (selectionPos
 	}
 
 	return selectionPos{
-		Line: m.viewport.YOffset + (y - bounds.y),
+		Line: y - bounds.y,
 		Col:  x - bounds.x,
 	}, true
 }
@@ -1040,6 +1043,9 @@ func (m *model) selectionText() string {
 		return ""
 	}
 
+	start.Line += m.viewport.YOffset
+	end.Line += m.viewport.YOffset
+
 	maxLine := len(lines) - 1
 	start.Line = clampInt(start.Line, 0, maxLine)
 	end.Line = clampInt(end.Line, 0, maxLine)
@@ -1047,17 +1053,20 @@ func (m *model) selectionText() string {
 	end.Col = clampInt(end.Col, 0, m.viewport.Width)
 
 	endCol := end.Col + 1
+	if end.Col >= m.viewport.Width-1 {
+		endCol = ansi.StringWidth(lines[end.Line])
+	}
 
 	if start.Line == end.Line {
-		return strings.TrimRight(cutPlain(lines[start.Line], start.Col, endCol), "\n")
+		return trimRightSpaces(cutPlain(lines[start.Line], start.Col, endCol))
 	}
 
 	var out []string
-	out = append(out, cutPlain(lines[start.Line], start.Col, ansi.StringWidth(lines[start.Line])))
+	out = append(out, trimRightSpaces(cutPlain(lines[start.Line], start.Col, ansi.StringWidth(lines[start.Line]))))
 	for i := start.Line + 1; i < end.Line; i++ {
-		out = append(out, ansi.Strip(lines[i]))
+		out = append(out, trimRightSpaces(ansi.Strip(lines[i])))
 	}
-	out = append(out, cutPlain(lines[end.Line], 0, endCol))
+	out = append(out, trimRightSpaces(cutPlain(lines[end.Line], 0, endCol)))
 	return strings.Join(out, "\n")
 }
 
@@ -1574,17 +1583,16 @@ func (m model) renderViewport() string {
 
 	lines := strings.Split(view, "\n")
 	for i := range lines {
-		absLine := m.viewport.YOffset + i
-		if absLine < start.Line || absLine > end.Line {
+		if i < start.Line || i > end.Line {
 			continue
 		}
 
 		left := 0
 		right := m.viewport.Width
-		if absLine == start.Line {
+		if i == start.Line {
 			left = start.Col
 		}
-		if absLine == end.Line {
+		if i == end.Line {
 			right = end.Col + 1
 		}
 
@@ -1920,6 +1928,10 @@ func cutPlain(line string, left, right int) string {
 	return ansi.Strip(ansi.Cut(line, left, right))
 }
 
+func trimRightSpaces(line string) string {
+	return strings.TrimRight(line, " ")
+}
+
 func applySelectionToLine(line string, left, right int) string {
 	if right <= left {
 		return line
@@ -1937,6 +1949,9 @@ func applySelectionToLine(line string, left, right int) string {
 
 func copyToClipboardCmd(text string) tea.Cmd {
 	return func() tea.Msg {
+		if err := copyToSystemClipboard(text); err == nil {
+			return nil
+		}
 		seq := osc52.New(text)
 		term := strings.ToLower(os.Getenv("TERM"))
 		if strings.Contains(term, "screen") || strings.Contains(term, "tmux") || os.Getenv("TMUX") != "" {
@@ -1947,5 +1962,20 @@ func copyToClipboardCmd(text string) tea.Cmd {
 		}
 		fmt.Fprint(os.Stderr, seq.String())
 		return nil
+	}
+}
+
+func copyToSystemClipboard(text string) error {
+	switch runtime.GOOS {
+	case "darwin":
+		path, err := exec.LookPath("pbcopy")
+		if err != nil {
+			return err
+		}
+		cmd := exec.Command(path)
+		cmd.Stdin = strings.NewReader(text)
+		return cmd.Run()
+	default:
+		return fmt.Errorf("system clipboard unavailable")
 	}
 }
