@@ -6,6 +6,9 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 
 ## [Unreleased]
 
+### Changed
+- Automated release packaging and Homebrew tap updates.
+
 ## [0.3.1] - 2026-01-13
 
 ### Changed

@@ -3,14 +3,34 @@ name: Release
 on:
   push:
     tags:
-      - "*"
+      - "v*"
 
 permissions:
   contents: write
 
 jobs:
-  release:
+  build:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: darwin
+            goarch: arm64
+            os_name: macos
+            arch_name: arm64
+          - goos: darwin
+            goarch: amd64
+            os_name: macos
+            arch_name: x86_64
+          - goos: linux
+            goarch: arm64
+            os_name: linux
+            arch_name: arm64
+          - goos: linux
+            goarch: amd64
+            os_name: linux
+            arch_name: x86_64
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -18,8 +38,113 @@ jobs:
           go-version-file: go.mod
           cache: true
       - name: Build
-        run: go build -o suite
-      - name: Publish release
+        run: |
+          set -euo pipefail
+
+          mkdir -p dist
+          bin_name=suite
+          goos="${{ matrix.goos }}"
+          goarch="${{ matrix.goarch }}"
+          os_name="${{ matrix.os_name }}"
+          arch_name="${{ matrix.arch_name }}"
+
+          env GOOS="${goos}" GOARCH="${goarch}" CGO_ENABLED=0 go build -o "dist/${bin_name}" .
+          chmod +x "dist/${bin_name}"
+          (cd dist && tar -czf "${bin_name}-${os_name}-${arch_name}.tar.gz" "${bin_name}")
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: suite-${{ matrix.os_name }}-${{ matrix.arch_name }}
+          path: dist/*.tar.gz
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          files: suite
+          files: dist/*.tar.gz
+
+  update-homebrew-tap:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout tap
+        uses: actions/checkout@v4
+        with:
+          repository: mikker/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN || github.token }}
+          path: tap
+      - name: Update formula
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          tag="${TAG}"
+          mac_arm_url="https://github.com/mikker/dude_suite/releases/download/${tag}/suite-macos-arm64.tar.gz"
+          mac_intel_url="https://github.com/mikker/dude_suite/releases/download/${tag}/suite-macos-x86_64.tar.gz"
+          linux_arm_url="https://github.com/mikker/dude_suite/releases/download/${tag}/suite-linux-arm64.tar.gz"
+          linux_intel_url="https://github.com/mikker/dude_suite/releases/download/${tag}/suite-linux-x86_64.tar.gz"
+
+          mac_arm_sha=$(curl -fsSL "${mac_arm_url}" | shasum -a 256 | awk '{print $1}')
+          mac_intel_sha=$(curl -fsSL "${mac_intel_url}" | shasum -a 256 | awk '{print $1}')
+          linux_arm_sha=$(curl -fsSL "${linux_arm_url}" | shasum -a 256 | awk '{print $1}')
+          linux_intel_sha=$(curl -fsSL "${linux_intel_url}" | shasum -a 256 | awk '{print $1}')
+
+          cat > tap/Formula/suite.rb <<EOF
+          class Suite < Formula
+            desc "Tiny TUI task runner with hotkeys, split output, and YAML config"
+            homepage "https://github.com/mikker/dude_suite"
+            license "MIT"
+
+            on_macos do
+              if Hardware::CPU.arm?
+                url "${mac_arm_url}"
+                sha256 "${mac_arm_sha}"
+              else
+                url "${mac_intel_url}"
+                sha256 "${mac_intel_sha}"
+              end
+            end
+
+            on_linux do
+              if Hardware::CPU.arm?
+                url "${linux_arm_url}"
+                sha256 "${linux_arm_sha}"
+              else
+                url "${linux_intel_url}"
+                sha256 "${linux_intel_sha}"
+              end
+            end
+
+            def install
+              bin.install "suite"
+            end
+
+            test do
+              system bin/"suite", "--help"
+            end
+          end
+          EOF
+      - name: Commit and push
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/suite.rb
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git commit -m "Update suite to ${version}"
+          git push
