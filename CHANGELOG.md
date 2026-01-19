@@ -8,6 +8,7 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 
 ### Changed
 - Automated release packaging and Homebrew tap updates.
+- Added Homebrew install notes to the README.
 
 ## [0.3.1] - 2026-01-13
 

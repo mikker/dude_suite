@@ -25,6 +25,12 @@ https://github.com/mikker/dude_suite/releases/latest/download/suite
 $ suite
 ```
 
+Or install with Homebrew:
+
+```bash
+brew install mikker/tap/suite
+```
+
 By default it reads `.suite.yml` from the current directory. Use `-c` or `--config` to override:
 
 ```bash
