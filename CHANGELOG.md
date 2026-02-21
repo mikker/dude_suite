@@ -6,6 +6,8 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-02-21
+
 ### Added
 - Added a `--no-autostart` flag to skip running `autostart: true` tasks on launch.
 
