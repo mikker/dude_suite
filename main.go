@@ -24,10 +24,12 @@ func main() {
 
 	var configPath string
 	var themeFlag string
+	var noAutostart bool
 	flag.StringVar(&configPath, "config", defaultConfigName, "path to config file")
 	flag.StringVar(&configPath, "c", defaultConfigName, "path to config file (shorthand)")
 	flag.StringVar(&themeFlag, "theme", "", "theme override: auto, light, or dark")
 	flag.StringVar(&themeFlag, "t", "", "theme override: auto, light, or dark (shorthand)")
+	flag.BoolVar(&noAutostart, "no-autostart", false, "do not run tasks with autostart: true on startup")
 	flag.Parse()
 
 	cfg, err := LoadConfig(configPath)
@@ -46,6 +48,9 @@ func main() {
 	if strings.TrimSpace(themeFlag) != "" {
 		cfg.Theme = strings.TrimSpace(themeFlag)
 	}
+	if noAutostart {
+		disableTaskAutostart(&cfg)
+	}
 	applyTheme(cfg.Theme)
 	m := newModel(cfg)
 	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
@@ -59,6 +64,12 @@ func main() {
 	}
 	if final, ok := finalModel.(*model); ok {
 		final.killAllTasks()
+	}
+}
+
+func disableTaskAutostart(cfg *Config) {
+	for i := range cfg.Tasks {
+		cfg.Tasks[i].Autostart = false
 	}
 }
 

@@ -37,6 +37,12 @@ By default it reads `.suite.yml` from the current directory. Use `-c` or `--conf
 ./suite -c path/to/.suite.yml
 ```
 
+Skip startup `autostart: true` tasks:
+
+```bash
+./suite --no-autostart
+```
+
 ## Init
 
 Create a starter config in the current directory:

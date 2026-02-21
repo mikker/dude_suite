@@ -6,6 +6,9 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 
 ## [Unreleased]
 
+### Added
+- Added a `--no-autostart` flag to skip running `autostart: true` tasks on launch.
+
 ### Changed
 - Automated release packaging and Homebrew tap updates.
 - Added Homebrew install notes to the README.
